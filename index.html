@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Call</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* 1. लड़की का वीडियो (मेन स्क्रीन) */
+        #remoteVideo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            display: none; 
+        }
+
+        /* 2. यूजर का कैमरा (छोटा बॉक्स) */
+        #localCamera {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 120px;
+            height: 160px;
+            background-color: #000; /* काला बैकग्राउंड ताकि कैमरा न चले तो खाली न दिखे */
+            border: 2px solid #fff;
+            border-radius: 10px;
+            z-index: 2;
+            object-fit: cover;
+            display: none; 
+            /* transform: scaleX(-1); इस लाइन को हटा दिया गया है ताकि कैमरा उल्टा न दिखे */
+        }
+
+        /* 3. इनकमिंग कॉल स्क्रीन */
+        #incomingCallScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* caller_image.jpg यहां दिखेगी */
+            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('caller_image.jpg');
+            background-size: cover;
+            background-position: center;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        /* कॉलर की फोटो (गोल) */
+        .caller-photo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 3px solid #2ecc71;
+            object-fit: cover;
+            margin-bottom: 20px;
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
+            background-color: #333; /* अगर इमेज न हो तो ग्रे दिखे */
+        }
+
+        .btn-pickup {
+            background-color: #2ecc71;
+            border: none;
+            padding: 15px 50px;
+            border-radius: 50px;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            margin-top: 50px;
+            animation: pulse 1.5s infinite;
+            font-weight: bold;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* 4. पेमेंट स्क्रीन */
+        #paymentScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 20;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+        }
+
+        #qrImage {
+            width: 200px;
+            height: 200px;
+            margin: 20px 0;
+            cursor: pointer;
+            border: 5px solid white;
+        }
+
+        #fullScreenQrOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            z-index: 30;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        #fullScreenQrOverlay img {
+            width: 90%;
+            height: auto;
+        }
+
+        input {
+            padding: 12px;
+            font-size: 16px;
+            width: 80%;
+            margin-top: 15px;
+            border-radius: 5px;
+            border: none;
+            text-align: center;
+        }
+
+        .btn-verify {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            margin-top: 15px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- वीडियो एलीमेंट्स -->
+    <video id="remoteVideo" loop playsinline>
+        <source src="girl_video.mp4" type="video/mp4">
+    </video>
+    
+    <!-- यूजर का कैमरा (muted जरूरी है ताकि ऑटोप्ले हो सके) -->
+    <video id="localCamera" autoplay playsinline muted></video>
+
+    <!-- इनकमिंग कॉल स्क्रीन -->
+    <div id="incomingCallScreen">
+        <img src="caller_image.jpg" alt="" class="caller-photo">
+        <h2>Angel Priya</h2>
+        <p>Incoming Video Call...</p>
+        <button class="btn-pickup" onclick="startCall()">📞 ACCEPT</button>
+    </div>
+
+    <!-- पेमेंट स्क्रीन -->
+    <div id="paymentScreen">
+        <h2 style="color: #ff4757;">Call Limit Reached!</h2>
+        <p>To continue video chat, Pay <b>₹39</b></p>
+        
+        <img id="qrImage" src="qr_code.png" alt="QR Code" onclick="openFullQR()">
+        <p style="font-size: 12px; color: #aaa;">Touch QR to Zoom</p>
+
+        <input type="number" id="utrInput" placeholder="Enter 12 Digit UTR Number">
+        <button class="btn-verify" onclick="verifyPayment()">Unlock Call</button>
+    </div>
+
+    <div id="fullScreenQrOverlay" onclick="closeFullQR()">
+        <img id="fullQrImg" src="" alt="Full QR">
+    </div>
+
+    <script>
+        const remoteVideo = document.getElementById('remoteVideo');
+        const localCamera = document.getElementById('localCamera');
+        const incomingScreen = document.getElementById('incomingCallScreen');
+        const paymentScreen = document.getElementById('paymentScreen');
+        const qrImage = document.getElementById('qrImage');
+        const fullScreenOverlay = document.getElementById('fullScreenQrOverlay');
+        const fullQrImg = document.getElementById('fullQrImg');
+
+        const isPaid = localStorage.getItem('isPaid') === 'true';
+
+        window.onload = function() {
+            if (localStorage.getItem('trialExpired') === 'true' && !isPaid) {
+                incomingScreen.style.display = 'none';
+                paymentScreen.style.display = 'flex';
+            }
+        };
+
+        // यह फंक्शन बटन दबाते ही कैमरा चालू करेगा
+        async function startCall() {
+            // यूजर से परमिशन मांगें
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true, // कैमरा
+                    audio: false // ऑडियो बंद रखा है ताकि शोर न हो
+                });
+                localCamera.srcObject = stream;
+            } catch (err) {
+                // अगर कैमरा फेल हुआ, तो चुपचाप आगे बढ़ें (कोई अलर्ट नहीं)
+                console.log("Camera access blocked by browser logic");
+            }
+
+            // स्क्रीन बदलें और वीडियो चलाएं
+            incomingScreen.style.display = 'none';
+            remoteVideo.style.display = 'block';
+            localCamera.style.display = 'block';
+            
+            remoteVideo.play();
+
+            if (!isPaid) {
+                setTimeout(() => {
+                    lockApp();
+                }, 8000);
+            }
+        }
+
+        function lockApp() {
+            remoteVideo.pause();
+            localCamera.style.display = 'none'; 
+            paymentScreen.style.display = 'flex';
+            localStorage.setItem('trialExpired', 'true');
+        }
+
+        function openFullQR() {
+            fullQrImg.src = qrImage.src;
+            fullScreenOverlay.style.display = 'flex';
+        }
+
+        function closeFullQR() {
+            fullScreenOverlay.style.display = 'none';
+        }
+
+        function verifyPayment() {
+            const utr = document.getElementById('utrInput').value;
+            if (utr.length === 12) {
+                localStorage.setItem('isPaid', 'true');
+                paymentScreen.style.display = 'none';
+                remoteVideo.play();
+                localCamera.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>
